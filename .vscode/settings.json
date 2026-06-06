@@ -1,0 +1,16 @@
+{
+  "alive.lsp.startCommand": [
+
+    "sbcl",
+    "--eval",
+    "(ql:quickload '(:bordeaux-threads :usocket :cl-json :flexi-streams))",
+    "--eval",
+    "(require :asdf)",
+    "--eval",
+    "(asdf:load-system :alive-lsp)",
+    "--eval",
+    "(alive/server:start)",
+    "--eval",
+    "(load \"bulk-updater/init.lisp\")"
+  ]
+}
