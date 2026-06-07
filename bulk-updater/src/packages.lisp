@@ -14,3 +14,5 @@
   (:import-from :quri #:uri)
   (:local-nicknames (:jzon :com.inuoe.jzon))
   (:export :main :entry-point))
+
+(setf cl-ppcre:*USE-BMH-MATCHERS* t)

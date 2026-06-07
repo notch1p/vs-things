@@ -9,6 +9,7 @@
                "dexador"
                "zip"
                "cl-interpol"
+               "cl-ppcre"
                "named-readtables")
 
   ;; Project stucture.
