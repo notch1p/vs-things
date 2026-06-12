@@ -1,6 +1,5 @@
 (in-package :bulk-updater)
 
-(named-readtables:in-readtable :interpol-syntax)
 (defun default-vs-datapath ()
   #+darwin
   (merge-pathnames "Library/Application Support/VintagestoryData/"
@@ -102,13 +101,13 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
 
 (defun update-api (mod)
   (declare (inline update-api))
-  (uri #?"https://mods.vintagestory.at/api/mod/${mod}"))
+  (uri (format nil "https://mods.vintagestory.at/api/mod/~A" mod)))
 
 (defun build-args (modid-version)
   (destructuring-bind
       (modid version)
       modid-version
-    #?"${modid}@${version}"))
+    (format nil "~A@~A" modid version)))
 
 (defmethod print-object ((object hash-table) stream)
   (format stream "#HASH{~{~{(~a : ~a)~}~^ ~}}"
@@ -227,7 +226,7 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                  (res-mod (car res-succeed)))
              (if (equal (car old-mod) (car res-mod))
                  (destructuring-bind (modidstr modversion filename path) res-mod
-                   (format t "Updated~19@A ~8A -> ~A~&" modidstr (cadr old-mod) modversion)
+                   (format t "+~22@A ~12A -> ~A~&" modidstr (cadr old-mod) modversion)
                    (cons `(,modidstr ,modversion ,filename ,path ,(mtime path)) (update-ordered-modsinfo (cdr modsinfo) (cdr res-succeed))))
                  (cons (car modsinfo) (update-ordered-modsinfo (cdr modsinfo) res-succeed)))))))
 
@@ -277,7 +276,7 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                                                (query (quri:uri-query-params download-uri)))
                                           (setf (quri:uri-query-params download-uri) query)
                                           (dex:fetch download-uri path)
-                                          (format t "Got    ~19@A ~A~%" modidstr modversion)
+                                          (format t "G    ~22@A ~A~%" modidstr modversion)
                                           (force-output)
                                           (list modidstr modversion filename path)))))))
                           diff)))
@@ -292,7 +291,7 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                (res-old-succeed (inter-id inter res-succeed)))
           (dolist (i res-old-succeed)
             (uiop:delete-file-if-exists (cadddr i))
-            (format t "Deleted~19@A ~A~%" (car i) (cadr i))
+            (format t "-~22@A ~A~%" (car i) (cadr i))
             (force-output))
           (when res-succeed (with-open-file (s lockfile
                                                :direction :output

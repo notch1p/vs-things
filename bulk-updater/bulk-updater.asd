@@ -8,9 +8,7 @@
   :depends-on ("com.inuoe.jzon"
                "dexador"
                "zip"
-               "cl-interpol"
-               "cl-ppcre"
-               "named-readtables")
+               "cl-ppcre")
 
   ;; Project stucture.
   :serial t
@@ -18,6 +16,7 @@
                         :serial t
                         :components ((:file "packages")
                                      (:file "thread-failure")
+                                     (:file "packdef")
                                      (:file "bulk-updater"))))
   :build-operation "program-op"
   :build-pathname "vsmod-updater"

@@ -12,4 +12,5 @@ build:
 		--eval '(ql:quickload :bulk-updater)' \
 		--eval '(asdf:make :bulk-updater)'
 
-clean: -rm vsmod-updater vsmod-updater.exe
+clean:
+	-rm vsmod-updater vsmod-updater.exe
