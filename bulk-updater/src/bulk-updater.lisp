@@ -48,6 +48,9 @@
 (defun pick-keys (hashmap &rest keys)
   (mapcar (lambda (k) (gethash k hashmap)) keys))
 
+(defmacro select-keys (hashmap &rest keys)
+  (reduce (lambda (acc k) `(gethash ,k ,acc)) keys :initial-value hashmap))
+
 (defun await-map (f thread)
   (funcall f (await thread)))
 
@@ -85,30 +88,28 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
              thread))
 
 (defun await-mod-latest-release (thread) ; manual eta-expansion
-  (await-map (lambda (res)
-               (pick-keys
-                   (reduce (lambda (acc x)
-                             (let ((modversion-acc (gethash "modversion" acc))
-                                   (modversion-x (gethash "modversion" x)))
-                               (if (version> modversion-acc modversion-x)
-                                   acc
-                                   x)))
-                       (gethash "releases"
-                                (gethash "mod"
-                                         (jzon:parse res))))
-                 "modidstr" "modversion" "filename" "mainfile"))
-             thread))
+  (await-map
+    (lambda (res)
+      (pick-keys
+          (reduce (lambda (acc x)
+                    (let ((modversion-acc (gethash "modversion" acc))
+                          (modversion-x (gethash "modversion" x)))
+                      (if (version> modversion-acc modversion-x) acc x)))
+              (select-keys (jzon:parse res) "mod" "releases"))
+        "modidstr" "modversion" "filename" "mainfile"))
+    thread))
 
+(declaim (inline (update-api build-args)))
 (defun update-api (mod)
-  (declare (inline update-api))
   (uri (format nil "https://mods.vintagestory.at/api/mod/~A" mod)))
 
-(defun build-args (modid-version)
-  (destructuring-bind
-      (modid version)
-      modid-version
-    (format nil "~A@~A" modid version)))
+(defun build-args (modid version)
+  (format nil "~A@~A" modid version))
 
+(defun build-args-modsinfo (modsinfo)
+  (build-args (car modsinfo) (cadr modsinfo)))
+
+#+nil
 (defmethod print-object ((object hash-table) stream)
   (format stream "#HASH{~{~{(~a : ~a)~}~^ ~}}"
     (loop for key being the hash-keys of object
@@ -205,11 +206,11 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
 (defun getopt-host (args)
   (loop for (flag value) on args
           when (string= flag "--host")
-        do (return (or value (error "--host requires an argument")))))
+          return (or value (warn 'arg-not-fullfilled/applicable :arg "--host" :param value))))
 
-;; disable debugger so deadlock introduced by a thread failing results in
-;; the whole program to crash.
 (defun entry-point ()
+  ; disable debugger so deadlock introduced by a thread failing results in
+  ; the whole program to crash.
   (sb-ext:disable-debugger)
   (main :host (getopt-host (uiop:command-line-arguments))))
 
@@ -252,7 +253,8 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
             (format t "lockfile stale or nonexistent. Written it to ~A~%" lockfile)
             (prin1 modsinfo s)
             (force-output s)))
-    ;    (return-from main)
+    ; (print (mapcar #'build-args-modsinfo modsinfo))
+    ; (return-from main)
     (let* ((releases-thread (mapcar
                                 (lambda (modinfo)
                                   (spawn (lambda ()
@@ -276,7 +278,7 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                                                (query (quri:uri-query-params download-uri)))
                                           (setf (quri:uri-query-params download-uri) query)
                                           (dex:fetch download-uri path)
-                                          (format t "G    ~22@A ~A~%" modidstr modversion)
+                                          (format t "G~22@A ~A~%" modidstr modversion)
                                           (force-output)
                                           (list modidstr modversion filename path)))))))
                           diff)))
@@ -285,7 +287,7 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
           (mapcar #'caddr inter)
           *cwd*)
         (force-output)
-        (let* ((res-succeed (loop for r in (mapcar #'join-thread downloads)
+        (let* ((res-succeed (loop for r in (mapcar #'await downloads)
                                     if (failed-p r) do (format *error-output* "~&Skipped: ~a~%" (car (failed-condition r)))
                                     else collect r))
                (res-old-succeed (inter-id inter res-succeed)))
@@ -300,3 +302,15 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                               (prin1 (update-ordered-modsinfo modsinfo res-succeed) s)
                               (format t "Updated lockfile at ~A~%" lockfile)
                               (force-output s))))))))
+
+; v2 api testing
+
+;(print (dex:get (quri:make-uri :defaults "https://mods.vintagestory.at/api/v2/mods/install-information"
+;                  :query
+;                  `(("gv" . "1.22.3")
+;                    ("ids" . ,(format nil "~{~A~^,~}" (read-list "src/test.txt")))))))
+
+;(print (with-open-file (in "src/test.json")
+;         (gethash "fileUrl" (gethash "carryon" (gethash "data" (jzon:parse in))))))
+;
+;(print (read-list "bulk-updater/src/test.txt"))

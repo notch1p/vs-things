@@ -12,3 +12,4 @@ bin/
 .qlot/
 .env
 bulk-updater/vsmod-updater*
+test.*

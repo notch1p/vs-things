@@ -24,8 +24,8 @@
 
   (defun m-reader (s _subchar _arg)
     (declare (ignore _subchar _arg))
-      (multiple-value-bind (hd deps) (split-at 5 (read s t nil t))
-        `(mkmod ,@hd :deps (list ,@deps))))
+    (multiple-value-bind (hd deps) (split-at 5 (read s t nil t))
+      `(mkmod ,@hd :deps (list ,@deps))))
 
   (set-dispatch-macro-character #\# #\m #'m-reader))
 
@@ -33,3 +33,13 @@
   (with-slots (modid ver filename path mtime deps) m
     (format stream "#M(~s ~s ~s ~s ~s ~s)"
       modid ver filename path mtime deps)))
+
+(define-condition arg-not-fullfilled/applicable (warning)
+    ((arg
+       :initarg :arg
+       :accessor cond-arg)
+     (param
+       :initarg :param
+       :accessor cond-param))
+  (:report (lambda (c s)
+             (format s "Option ~A does not accept param ~A" (cond-arg c) (cond-param c)))))
