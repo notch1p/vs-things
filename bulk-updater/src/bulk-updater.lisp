@@ -95,7 +95,11 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                     (let ((modversion-acc (gethash "modversion" acc))
                           (modversion-x (gethash "modversion" x)))
                       (if (version> modversion-acc modversion-x) acc x)))
-              (select-keys (jzon:parse res) "mod" "releases"))
+              (handler-case
+                  (select-keys (jzon:parse res) "mod" "releases")
+                (error (e)
+                  (warn "Condition ~A~%  signaled in thread~%~A~%" e thread)
+                  (return-from await-mod-latest-release nil))))
         "modidstr" "modversion" "filename" "mainfile"))
     thread))
 
@@ -231,6 +235,14 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
                    (cons `(,modidstr ,modversion ,filename ,path ,(mtime path)) (update-ordered-modsinfo (cdr modsinfo) (cdr res-succeed))))
                  (cons (car modsinfo) (update-ordered-modsinfo (cdr modsinfo) res-succeed)))))))
 
+(defun filter-mapcar (f l)
+  (reduce (lambda (x acc)
+            (let ((fx (funcall f x)))
+              (if fx (cons fx acc) acc)))
+      l
+    :initial-value nil
+    :from-end t))
+
 (defun main (&key host)
   (let* ((*vs-datapath* (default-vs-datapath))
          (*cwd* (or (probe-file (mods-path host))
@@ -258,11 +270,12 @@ missing number counting as 0); differing tags has ordering rc > pre > dev."
     (let* ((releases-thread (mapcar
                                 (lambda (modinfo)
                                   (spawn (lambda ()
-                                           (dex:get (update-api (car modinfo)) :force-binary t))))
+                                           (dex:get (update-api (car modinfo)) :force-binary t))
+                                         (format nil "GET::~A" (car modinfo))))
                                 modsinfo))
            (releases (mapcar #'await-mod-latest-release releases-thread))
            (diff-original nil)
-           ;(releases (with-open-file (test "test.txt") (read test)))
+           ; (releases (with-open-file (test "test.txt") (read test)))
            (diff (multiple-value-bind (diff-new diff-old) (diff-version releases modsinfo)
                    (setf diff-original diff-old)
                    (let ((recipe (edit-recipe diff-new)))
